@@ -6,6 +6,7 @@ com/ecommerce/auth/entity/User.class
 com/ecommerce/auth/service/AuthService.class
 com/ecommerce/auth/repository/RoleRepository.class
 com/ecommerce/auth/AuthApplication.class
+com/ecommerce/auth/dto/LoginResponse.class
 com/ecommerce/auth/service/JwtService.class
 com/ecommerce/auth/dto/RegisterRequest.class
 com/ecommerce/auth/security/SecurityConfig.class

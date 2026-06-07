@@ -45,7 +45,8 @@ public class AuthService {
 
         Role role =
                 roleRepository.findByName("USER")
-                        .orElseThrow();
+                        .orElseThrow(() ->
+                                new RuntimeException("Role not found"));
 
         User user = new User();
 
@@ -63,7 +64,7 @@ public class AuthService {
 
         userRepository.save(user);
 
-        return "User Registered";
+        return "User Registered Successfully";
     }
 
     public AuthResponse login(
@@ -93,6 +94,9 @@ public class AuthService {
                         user.getRole().getName());
 
         return new AuthResponse(
-                token);
+                token,
+                user.getUsername(),
+                user.getEmail()
+        );
     }
 }
