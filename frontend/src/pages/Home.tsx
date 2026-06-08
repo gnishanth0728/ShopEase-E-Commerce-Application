@@ -360,8 +360,10 @@ const loadProducts = async (
       <Container>
         <Typography
           variant="h5"
-          sx={{ fontWeight: "bold" }}
-          mb={3}
+          sx={{
+            fontWeight: "bold",
+            mb: 3
+          }}
         >
           Categories
         </Typography>
@@ -370,9 +372,10 @@ const loadProducts = async (
         {categories.map((category: any) => (
 
   <Grid
-    item
-    xs={6}
-    md={2}
+    size={{
+      xs: 6,
+      md: 2
+    }}
     key={category.id}
   >
     <Paper
@@ -457,9 +460,10 @@ const loadProducts = async (
             <Grid container spacing={3}>
               {products.map((product: any) => (
                 <Grid
-                  item
-                  xs={12}
-                  md={3}
+                  size={{
+                    xs: 12,
+                    md: 3
+                  }}
                   key={product.id}
                 >
                   <Card
