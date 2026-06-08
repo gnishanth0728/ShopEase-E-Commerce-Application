@@ -15,11 +15,14 @@ import {
   Avatar,
   Menu,
   MenuItem,
-  IconButton
+  IconButton,
+  Snackbar,
+  Alert
 } from "@mui/material";
 
 import SearchIcon from "@mui/icons-material/Search";
 import ClearIcon from "@mui/icons-material/Clear";
+import ShoppingCartIcon from "@mui/icons-material/ShoppingCart";
 
 import {
   useState,
@@ -29,7 +32,8 @@ import {
   type MouseEvent
 } from "react";
 import productApi from "../api/productApi";
-import { Link } from "react-router-dom";
+import { addToCart } from "../api/cartApi";
+import { Link, useNavigate } from "react-router-dom";
 
 
 export default function Home() {
@@ -39,10 +43,18 @@ export default function Home() {
   const username =
     localStorage.getItem("username");
 
+  const navigate = useNavigate();
+
   const [anchorEl, setAnchorEl] =
     useState<null | HTMLElement>(null);
 
   const open = Boolean(anchorEl);
+
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    message: "",
+    severity: "success" as "success" | "error"
+  });
 
   const handleLogout = () => {
     localStorage.removeItem("token");
@@ -50,6 +62,40 @@ export default function Home() {
     localStorage.removeItem("email");
 
     window.location.href = "/";
+  };
+
+  const handleAddToCart = async (product: any) => {
+    if (!token) {
+      setSnackbar({
+        open: true,
+        message: "Please login to add items to cart",
+        severity: "error"
+      });
+      navigate("/login");
+      return;
+    }
+
+    try {
+      await addToCart({
+        productId: product.id,
+        productName: product.name,
+        price: product.price,
+        quantity: 1,
+        imageUrl: product.imageUrl
+      });
+
+      setSnackbar({
+        open: true,
+        message: `${product.name} added to cart!`,
+        severity: "success"
+      });
+    } catch (error: any) {
+      setSnackbar({
+        open: true,
+        message: error.response?.data?.message || "Failed to add item to cart",
+        severity: "error"
+      });
+    }
   };
 
   const [categories, setCategories] =
@@ -291,6 +337,14 @@ const totalPages = Math.ceil(
 
           {token ? (
             <>
+              <IconButton
+                component={Link}
+                to="/cart"
+                sx={{ color: "white" }}
+              >
+                <ShoppingCartIcon />
+              </IconButton>
+
               <Box
                 sx={{
                   display: "flex",
@@ -717,6 +771,7 @@ const totalPages = Math.ceil(
                         fullWidth
                         variant="contained"
                         sx={{ mt: 1, bgcolor: "#2874f0" }}
+                        onClick={() => handleAddToCart(product)}
                       >
                         Add To Cart
                       </Button>
@@ -787,6 +842,26 @@ const totalPages = Math.ceil(
           </Typography>
         </Container>
       </Box>
+
+      {/* SNACKBAR NOTIFICATION */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={3000}
+        onClose={() =>
+          setSnackbar({ ...snackbar, open: false })
+        }
+        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+      >
+        <Alert
+          onClose={() =>
+            setSnackbar({ ...snackbar, open: false })
+          }
+          severity={snackbar.severity}
+          sx={{ width: "100%" }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
 
     </Box>
   );
