@@ -33,10 +33,12 @@ import {
 } from "react";
 import productApi from "../api/productApi";
 import { addToCart } from "../api/cartApi";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 
 export default function Home() {
+
+  const navigate = useNavigate();
 
   const token = localStorage.getItem("token");
 
@@ -389,9 +391,10 @@ const totalPages = Math.ceil(
                 </MenuItem>
 
                 <MenuItem
-                  component={Link}
-                  to="/orders"
-                  onClick={() => setAnchorEl(null)}
+                  onClick={() => {
+                    setAnchorEl(null);
+                    navigate("/orders");
+                  }}
                 >
                   Orders
                 </MenuItem>
