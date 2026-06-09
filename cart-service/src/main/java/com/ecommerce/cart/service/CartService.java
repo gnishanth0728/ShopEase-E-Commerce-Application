@@ -68,7 +68,9 @@ public class CartService {
 
         if (item.isPresent()) {
             if (quantity <= 0) {
-                cartItemRepository.delete(item.get());
+                if (cart.getItems() != null) {
+                    cart.getItems().removeIf(cartItem -> cartItem.getProductId().equals(productId));
+                }
             } else {
                 item.get().setQuantity(quantity);
                 item.get().setUpdatedAt(System.currentTimeMillis());
@@ -82,10 +84,8 @@ public class CartService {
 
     public Cart removeFromCart(String userEmail, Long productId) {
         Cart cart = getOrCreateCart(userEmail);
-        Optional<CartItem> item = cartItemRepository.findByCartIdAndProductId(cart.getId(), productId);
-
-        if (item.isPresent()) {
-            cartItemRepository.delete(item.get());
+        if (cart.getItems() != null) {
+            cart.getItems().removeIf(item -> item.getProductId().equals(productId));
         }
 
         cart.setUpdatedAt(System.currentTimeMillis());
