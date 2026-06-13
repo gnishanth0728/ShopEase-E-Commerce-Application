@@ -26,7 +26,7 @@ export const addToWishlist = (product: {
 export const removeFromWishlist = (productId: number) =>
   wishlistApi.delete(`remove/${productId}`);
 
-export const getWishlist = () => wishlistApi.get("");
+export const getWishlist = () => wishlistApi.get("/");
 
 export const checkIfInWishlist = (productId: number) =>
   wishlistApi.get(`check/${productId}`);
