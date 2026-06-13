@@ -62,6 +62,19 @@ E-Commerce-Application/
 
 ## Run the Application
 
+### 0. Start Kafka (Optional Messaging Layer)
+
+From the project root:
+
+```bash
+docker compose up -d
+```
+
+This starts:
+- Kafka broker on `localhost:9092`
+- Zookeeper on `localhost:2181`
+- Kafka UI on `http://localhost:8088`
+
 ### 1. Start Databases
 
 Start PostgreSQL for auth:
@@ -127,6 +140,7 @@ Vite proxy (`frontend/vite.config.ts`) forwards:
 ## Key Configuration Files
 
 - `frontend/nginx.conf`
+- `docker-compose.yml`
 - `frontend/docker-compose.yml`
 - `frontend/Dockerfile`
 - `frontend/src/api/authApi.ts`

@@ -12,6 +12,7 @@ import com.ecommerce.order.dto.ShippingChargeResponse;
 import com.ecommerce.order.entity.Order;
 import com.ecommerce.order.entity.OrderItem;
 import com.ecommerce.order.entity.SavedCard;
+import com.ecommerce.order.event.KafkaOrderPublisher;
 import com.ecommerce.order.repository.OrderRepository;
 import com.ecommerce.order.repository.SavedCardRepository;
 import org.slf4j.Logger;
@@ -47,6 +48,9 @@ public class OrderService {
 
     @Autowired
     private SavedCardRepository savedCardRepository;
+
+    @Autowired
+    private KafkaOrderPublisher kafkaOrderPublisher;
 
     @Value("${cart.service.url}")
     private String cartServiceUrl;
@@ -132,6 +136,14 @@ public class OrderService {
 
         order.setItems(orderItems);
         orderRepository.save(order);
+
+        kafkaOrderPublisher.publishOrderPlaced(
+                order.getOrderId(),
+                order.getUserEmail(),
+                order.getFinalAmount(),
+                order.getTotalItems(),
+                "PENDING_PAYMENT"
+        );
 
         processPayment(order, request);
         order.setStatus("PLACED");

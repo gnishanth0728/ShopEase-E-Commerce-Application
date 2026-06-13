@@ -1,0 +1,226 @@
+version: "3.9"
+
+services:
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.6.0
+    container_name: ecommerce-zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+    volumes:
+      - zookeeper-data:/var/lib/zookeeper/data
+    restart: unless-stopped
+
+  kafka:
+    image: confluentinc/cp-kafka:7.6.0
+    container_name: ecommerce-kafka
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    ports:
+      - "9092:9092"
+    volumes:
+      - kafka-data:/var/lib/kafka/data
+    restart: unless-stopped
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: ecommerce-kafka-ui
+    depends_on:
+      - kafka
+      - zookeeper
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+      KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
+    ports:
+      - "8088:8080"
+    restart: unless-stopped
+
+  auth-db:
+    image: postgres:16-alpine
+    container_name: ecommerce-auth-db
+    environment:
+      POSTGRES_DB: authdb
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - auth-db-data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  product-db:
+    image: mysql:8.4
+    container_name: ecommerce-product-db
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: ecommerce
+    ports:
+      - "3306:3306"
+    volumes:
+      - product-db-data:/var/lib/mysql
+    restart: unless-stopped
+
+  cart-db:
+    image: mysql:8.4
+    container_name: ecommerce-cart-db
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: ecommerce_cart
+    ports:
+      - "3307:3306"
+    volumes:
+      - cart-db-data:/var/lib/mysql
+    restart: unless-stopped
+
+  order-db:
+    image: mysql:8.4
+    container_name: ecommerce-order-db
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: ecommerce_order
+    ports:
+      - "3308:3306"
+    volumes:
+      - order-db-data:/var/lib/mysql
+    restart: unless-stopped
+
+  shipping-db:
+    image: mysql:8.4
+    container_name: ecommerce-shipping-db
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: ecommerce_shipping
+    ports:
+      - "3310:3306"
+    volumes:
+      - shipping-db-data:/var/lib/mysql
+    restart: unless-stopped
+
+  auth-service:
+    build:
+      context: ./auth-service
+    container_name: ecommerce-auth-service
+    depends_on:
+      - auth-db
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://auth-db:5432/authdb
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+
+  product-service:
+    build:
+      context: ./product-service
+    container_name: ecommerce-product-service
+    depends_on:
+      - product-db
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://product-db:3306/ecommerce?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: root
+    ports:
+      - "8081:8081"
+    restart: unless-stopped
+
+  cart-service:
+    build:
+      context: ./cart-service
+    container_name: ecommerce-cart-service
+    depends_on:
+      - cart-db
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://cart-db:3306/ecommerce_cart?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: root
+    ports:
+      - "8082:8082"
+    restart: unless-stopped
+
+  order-service:
+    build:
+      context: ./order-service
+    container_name: ecommerce-order-service
+    depends_on:
+      - order-db
+      - kafka
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://order-db:3306/ecommerce_order?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: root
+      CART_SERVICE_URL: http://cart-service:8082/api/cart
+      PAYMENT_SERVICE_URL: http://payment-service:8084/api/payments/process
+      SHIPPING_SERVICE_URL: http://shipping-service:8085/api/shipping/calculate
+      PRODUCT_SERVICE_URL: http://product-service:8081/api/products
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    ports:
+      - "8083:8083"
+    restart: unless-stopped
+
+  payment-service:
+    build:
+      context: ./payment-service
+    container_name: ecommerce-payment-service
+    depends_on:
+      - kafka
+    environment:
+      PORT: 8084
+      KAFKA_BROKERS: kafka:9092
+    ports:
+      - "8084:8084"
+    restart: unless-stopped
+
+  shipping-service:
+    build:
+      context: ./shipping-service
+    container_name: ecommerce-shipping-service
+    depends_on:
+      - shipping-db
+    environment:
+      PORT: 8085
+      DB_HOST: shipping-db
+      DB_PORT: 3306
+      DB_USER: root
+      DB_PASSWORD: root
+      DB_NAME: ecommerce_shipping
+    ports:
+      - "8085:8085"
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: ecommerce-frontend
+    depends_on:
+      - auth-service
+      - product-service
+      - cart-service
+      - order-service
+      - payment-service
+      - shipping-service
+    ports:
+      - "3000:80"
+    restart: unless-stopped
+
+volumes:
+  zookeeper-data:
+  kafka-data:
+  auth-db-data:
+  product-db-data:
+  cart-db-data:
+  order-db-data:
+  shipping-db-data:

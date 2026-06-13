@@ -1,12 +1,15 @@
-FROM node:20-alpine
+FROM node:20-alpine AS base
 
 WORKDIR /app
-
-COPY package.json ./
-RUN npm install --omit=dev
+COPY package*.json ./
+RUN npm ci --omit=dev
 
 COPY server.js ./
 
-EXPOSE 8083
+FROM node:20-alpine
+WORKDIR /app
+COPY --from=base /app /app
 
-CMD ["npm", "start"]
+EXPOSE 8084
+
+CMD ["node", "server.js"]
