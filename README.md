@@ -6,23 +6,29 @@ Microservices-based e-commerce application with:
 - Frontend (React + Vite)
 - Nginx reverse proxy for single-entry routing
 
-## Architecture
+## Local Architecture
+
+The repository now uses one root Compose file for the full stack. The frontend is served by Nginx on port 3000, while the backend services and data stores run inside the same Docker network.
 
 ```mermaid
-flowchart TD
-		A[Browser\nhttp://18.207.151.13] --> B[Nginx :80]
+flowchart LR
+    U[Browser\nhttp://localhost:3000] --> F[Frontend\nReact + Vite + Nginx]
+    F --> A[Auth Service\n8080]
+    F --> P[Product Service\n8081]
+    F --> C[Cart Service\n8082]
+    F --> O[Order Service\n8083]
+    F --> PM[Payment Service\n8084]
+    F --> S[Shipping Service\n8085]
 
-		B -->|/| C[React Static App\nindex.html + assets]
+    A --> AU[(Auth DB\nPostgreSQL 5432)]
+    P --> PU[(Product DB\nMySQL 3306)]
+    C --> CU[(Cart DB\nMySQL 3307)]
+    O --> OU[(Order DB\nMySQL 3308)]
+    S --> SU[(Shipping DB\nMySQL 3310)]
 
-		B -->|/api/auth/*| D[Auth Service\n0.0.0.0:8080]
-		D --> E[(PostgreSQL\nauthdb :5432)]
-
-		B -->|/api/product/*| F[Rewrite to /api/*\nthen proxy]
-		F --> G[Product Service\n0.0.0.0:8081]
-		G --> H[(MySQL\necommerce :3306)]
-
-		C -->|XHR/fetch /api/auth/*| B
-		C -->|XHR/fetch /api/product/*| B
+    O --> K[Kafka\n9092]
+    PM --> K
+    K --> UI[Kafka UI\nhttp://localhost:8088]
 ```
 
 ## Request Routing
@@ -60,69 +66,48 @@ E-Commerce-Application/
 - Node.js 20+
 - npm
 
-## Run the Application
+## Run the Application Locally
 
-### 0. Start Kafka (Optional Messaging Layer)
+### 1. Start the full stack
 
-From the project root:
-
-```bash
-docker compose up -d
-```
-
-This starts:
-- Kafka broker on `localhost:9092`
-- Zookeeper on `localhost:2181`
-- Kafka UI on `http://localhost:8088`
-
-### 1. Start Databases
-
-Start PostgreSQL for auth:
+From the project root, build and start every service with the single Compose file:
 
 ```bash
-cd auth-service
-docker compose up -d
-```
-
-Start MySQL for products:
-
-```bash
-cd product-service
-docker compose up -d
-```
-
-### 2. Start Backend Services
-
-Start Auth Service on `0.0.0.0:8080`:
-
-```bash
-cd auth-service
-./mvnw spring-boot:run
-```
-
-Start Product Service on `0.0.0.0:8081`:
-
-```bash
-cd product-service
-./mvnw spring-boot:run
-```
-
-If `mvnw` is not available in your environment, use `mvn spring-boot:run`.
-
-### 3. Start Frontend Through Nginx (Recommended)
-
-```bash
-cd frontend
 docker compose up -d --build
 ```
 
-Open:
-- `http://18.207.151.13`
+This starts the complete local environment:
+- Frontend: http://localhost:3000
+- Kafka UI: http://localhost:8088
+- Auth service: http://localhost:8080
+- Product service: http://localhost:8081
+- Cart service: http://localhost:8082
+- Order service: http://localhost:8083
+- Payment service: http://localhost:8084
+- Shipping service: http://localhost:8085
+- Kafka broker: localhost:9092
+- Zookeeper: localhost:2181
 
-Nginx config file:
-- `frontend/nginx.conf`
+### 2. Verify the stack
 
-### 4. Frontend Dev Mode (Optional)
+```bash
+docker compose ps
+```
+
+Expected status: all containers should show `Up`.
+
+You can also verify HTTP endpoints with:
+
+```bash
+curl -i http://localhost:3000/
+curl -i http://localhost:8081/api/products
+curl -i http://localhost:8084/health
+curl -i http://localhost:8085/health
+```
+
+### 3. Optional: run the frontend in development mode
+
+If you want Vite dev mode instead of the Dockerized Nginx frontend:
 
 ```bash
 cd frontend
@@ -131,11 +116,23 @@ npm run dev
 ```
 
 Open:
-- `http://localhost:5173`
+- http://localhost:5173
 
-Vite proxy (`frontend/vite.config.ts`) forwards:
-- `/api/auth` -> `http://localhost:8080`
-- `/api/product` -> `http://localhost:8081` (rewritten to `/api/...`)
+The Vite proxy in `frontend/vite.config.ts` routes frontend API calls to the backend services.
+
+### 4. Kafka quick check
+
+To confirm Kafka is working from the broker container:
+
+```bash
+docker compose exec -T kafka sh -lc 'kafka-topics --bootstrap-server localhost:9092 --list'
+```
+
+For a real message round-trip test:
+
+```bash
+docker compose exec -T kafka sh -lc 'kafka-topics --bootstrap-server localhost:9092 --create --if-not-exists --topic kafka-proof --partitions 1 --replication-factor 1 >/dev/null 2>&1; echo "proof-message" | kafka-console-producer --bootstrap-server localhost:9092 --topic kafka-proof; timeout 30s kafka-console-consumer --bootstrap-server localhost:9092 --topic kafka-proof --from-beginning --max-messages 1 --timeout-ms 20000'
+```
 
 ## Key Configuration Files
 
